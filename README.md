@@ -1,0 +1,2 @@
+# DetectTextSWT
+Written in python
