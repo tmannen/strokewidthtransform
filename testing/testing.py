@@ -16,7 +16,7 @@ def plot_img(image):
 	plt.imshow(image, cmap=plt.cm.gray); plt.show()
 
 def check_edge_grad(source_grads, target_grads):
-	#check if opposite diection, then if the orientation is right?
+	#check if gradient is in the opposite direction
 	sdy, sdx = source_grads; tdy, tdx = target_grads
 	sg = np.linalg.norm(np.array(source_grads)); tg = np.linalg.norm(np.array(target_grads))
 	angle = np.arccos(np.clip(np.dot(sg, tg), -1.0, 1.0)) 
@@ -24,15 +24,6 @@ def check_edge_grad(source_grads, target_grads):
 		return True
 
 	return False
-
-def connected_components(swts):
-	rows, cols = swts.shape
-	pixnum = 0
-	graph = {}
-	for row in rows:
-		for col in cols:
-			graph[(row, col)] = pixnum
-			pixnum += 1
 
 def get_swts(edges, dxs, dys):
 	posy, posx = np.where(edges)
@@ -46,7 +37,6 @@ def get_swts(edges, dxs, dys):
 		this_x = posx[i]; this_y = posy[i]
 		dy = dys[this_y, this_x]; dx = dxs[this_y, this_x]
 		source_grad = (dy, dx)
-		#xs = [this_x]; ys = [this_y]
 		xs = []; ys = []
 
 		for step in range(1, 15):
@@ -65,7 +55,7 @@ def get_swts(edges, dxs, dys):
 
 				break
 
-			xs.append(newx); ys.append(newy) #need these to possibly assign new values to these pixels
+			xs.append(newx); ys.append(newy) #need these to possibly assign new values to these pixels (ray pixels)
 
 	for ray in nondiscarded_rays:
 		median = np.median(stroke_widths[ray])
