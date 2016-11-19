@@ -9,4 +9,4 @@ After SWT:
 
 ![After SWT](figure_1.png)
 
-The results aren't as good as in the paper. This might be due to the edge detection, as it's it seems 'coarse'. I'm not sure how to set the canny parameters to get it smoother.
+The results aren't as good as in the paper. This might be due to the edge detection, as it seems 'coarse'. I'm not sure how to set the canny parameters to get it smoother.
