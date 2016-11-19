@@ -7,6 +7,6 @@ Before SWT (from: http://www.cs.cornell.edu/courses/cs4670/2010fa/projects/final
 
 After SWT:
 
-![After SWT](figure1.png)
+![After SWT](figure_1.png)
 
 The results aren't as smooth as in the paper. This might be due to the edge detection, as it's not as smooth as it should be. I'm not sure how to set the canny parameters to get it smoother.
