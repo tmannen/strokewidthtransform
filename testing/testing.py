@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image
 
 eps = 10e-6 #for division of zero stuff
+max_angle = np.pi/4
 
 #REMINDER: dy = rows, first in numpy indexing, dx = columns, second in numpy indexing
 
@@ -17,12 +18,21 @@ def plot_img(image):
 def check_edge_grad(source_grads, target_grads):
 	#check if opposite diection, then if the orientation is right?
 	sdy, sdx = source_grads; tdy, tdx = target_grads
-	source_ori = np.arctan(sdy/(sdx+eps)); target_ori = np.arctan(tdy/(tdx+eps))
-	if source_ori - target_ori < np.pi/4: #accept as opposite candidate if true (what about direction?)
+	sg = np.linalg.norm(np.array(source_grads)); tg = np.linalg.norm(np.array(target_grads))
+	angle = np.arccos(np.clip(np.dot(sg, tg), -1.0, 1.0)) 
+	if angle - np.pi < max_angle: #angle is pi if theyre completely opposite
 		return True
 
 	return False
 
+def connected_components(swts):
+	rows, cols = swts.shape
+	pixnum = 0
+	graph = {}
+	for row in rows:
+		for col in cols:
+			graph[(row, col)] = pixnum
+			pixnum += 1
 
 def get_swts(edges, dxs, dys):
 	posy, posx = np.where(edges)
@@ -65,18 +75,16 @@ def get_swts(edges, dxs, dys):
 	return stroke_widths
 
 	
-img = imread("../images/testimage.png", as_grey=True).astype(np.float64)
-img /= np.max(img)
-#img = np.array(Image.open("../images/test2.png").convert("L"))
-filtered = gaussian_filter(img, sigma=0.5, truncate=3) #5x5 filter
-dx = sobel(img, 1).astype(np.float64) * -1 #maybe multiply with -1, easier to think that way (normally white = 1, black = 0)
-dy = sobel(img, 0).astype(np.float64) * -1
-maxes = np.max(np.abs(np.stack([dx, dy])), axis=0) #for normalizing gradients so the bigger is 1, easier to step
+img = imread("../images/test2.png", as_grey=True).astype(np.float64)
+img /= np.max(img) #normalizing so every image is similar, otherwise the edge detection messes up
+dx = sobel(img, 1).astype(np.float64)# * -1 #maybe multiply with -1, easier to think that way (normally white = 1, black = 0)
+dy = sobel(img, 0).astype(np.float64)# * -1
+maxes = np.max(np.abs(np.stack([dx, dy])), axis=0)
 maxes[maxes==0] = 1.0 #if both are zero max is zero, fix divide by zero (number doesnt matter here as zero will be divided)
 magnitudes = np.hypot(dx, dy)
-dx = dx/maxes
+dx = dx/maxes #for normalizing gradients so the bigger is 1, easier to step in the future
 dy = dy/maxes
-edges = canny(img, low_threshold=0.3, high_threshold=0.9, sigma=0.5).astype(np.int32)
+edges = canny(img, low_threshold=0.3, high_threshold=0.9, sigma=0.5).astype(np.int32) #still not as good as it should..
 
 swts = get_swts(edges, dx, dy)
 plot_img(swts)
