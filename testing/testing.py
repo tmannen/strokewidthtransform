@@ -37,14 +37,14 @@ def get_swts(edges, dxs, dys):
 		this_x = posx[i]; this_y = posy[i]
 		dy = dys[this_y, this_x]; dx = dxs[this_y, this_x]
 		source_grad = (dy, dx)
-		xs = []; ys = []
+		xs = [this_x]; ys = [this_y]
 
 		for step in range(1, 15):
 			incrx = int(dx*step); incry = int(dy*step)
 			newx = this_x + incrx; newy = this_y + incry
 			if newx >= maxx or newy >= maxy or newy < 0 or newx < 0: break
 
-			#xs.append(newx); ys.append(newy) #do we include edge pixels or not?
+			xs.append(newx); ys.append(newy) #do we include edge pixels or not?
 			if (newy, newx) in edgeset and len(xs) > 0: #we hit another edge
 				target_grad = (dys[newy, newx], dxs[newy, newx])
 				if check_edge_grad(source_grad, target_grad):
@@ -55,7 +55,7 @@ def get_swts(edges, dxs, dys):
 
 				break
 
-			xs.append(newx); ys.append(newy) #need these to possibly assign new values to these pixels (ray pixels)
+			#xs.append(newx); ys.append(newy) #need these to possibly assign new values to these pixels (ray pixels)
 
 	for ray in nondiscarded_rays:
 		median = np.median(stroke_widths[ray])
@@ -65,7 +65,7 @@ def get_swts(edges, dxs, dys):
 	return stroke_widths
 
 	
-img = imread("../images/test2.png", as_grey=True).astype(np.float64)
+img = imread("../images/test2big.jpg", as_grey=True).astype(np.float64)
 img /= np.max(img) #normalizing so every image is similar, otherwise the edge detection messes up
 dx = sobel(img, 1).astype(np.float64)# * -1 #maybe multiply with -1, easier to think that way (normally white = 1, black = 0)
 dy = sobel(img, 0).astype(np.float64)# * -1
