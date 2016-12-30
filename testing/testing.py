@@ -34,10 +34,12 @@ def create_adjacency_graph(swt_image):
 	
 	y, x = swt_image.shape
 	edges = dok_matrix((y*x, y*x), dtype=np.int8)
+	idx_to_coords = {}
 
 	for row in range(y):
 		for col in range(x):
 			idx = row*x + col
+			idx_to_coords[idx] = (row, col)
 			if swt_image[row, col] == np.inf:
 				continue
 
@@ -109,8 +111,8 @@ def get_swts(edges, dxs, dys):
 	
 img = imread("../images/I.png", as_grey=True).astype(np.float64)
 img /= np.max(img) #normalizing so every image is similar, otherwise the edge detection messes up
-dx = sobel(img, 1).astype(np.float64)# * -1 #maybe multiply with -1, easier to think that way (normally white = 1, black = 0)
-dy = sobel(img, 0).astype(np.float64)# * -1
+dx = sobel(img, 1).astype(np.float64) * -1 #maybe multiply with -1, easier to think that way (normally white = 1, black = 0)
+dy = sobel(img, 0).astype(np.float64) * -1
 maxes = np.max(np.abs(np.stack([dx, dy])), axis=0)
 maxes[maxes==0] = 1.0 #if both are zero max is zero, fix divide by zero (number doesnt matter here as zero will be divided)
 magnitudes = np.hypot(dx, dy)
@@ -120,5 +122,10 @@ edges = canny(img, low_threshold=0.3, high_threshold=0.9, sigma=0.5).astype(np.i
 
 swts = get_swts(edges, dx, dy)
 gg = create_adjacency_graph(swts)
-con = connected_components(gg)
+n_component, labels = connected_components(gg)
+uniq, uniq_idx, uniq_counts = np.unique(labels, return_inverse=True, return_counts=True)
+non_unique_mask = np.in1d(labels, uniq[uniq_counts > 1])
+
+components = np.reshape(non_unique_mask, swts.shape)
+
 #plot_img(swts)
