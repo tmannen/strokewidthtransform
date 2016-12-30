@@ -2,13 +2,15 @@ import skimage.filters as sf
 from skimage.io import imsave, imread
 from skimage.feature import canny
 from scipy.ndimage.filters import sobel, gaussian_filter
+from scipy.sparse import dok_matrix, csr_matrix
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
+from scipy.sparse.csgraph import connected_components
 
 eps = 10e-6 #for division of zero stuff
-max_angle = np.pi/4
+MAX_ANGLE = np.pi/4
 
 #REMINDER: dy = rows, first in numpy indexing, dx = columns, second in numpy indexing
 
@@ -20,10 +22,50 @@ def check_edge_grad(source_grads, target_grads):
 	sdy, sdx = source_grads; tdy, tdx = target_grads
 	sg = np.linalg.norm(np.array(source_grads)); tg = np.linalg.norm(np.array(target_grads))
 	angle = np.arccos(np.clip(np.dot(sg, tg), -1.0, 1.0)) 
-	if angle - np.pi < max_angle: #angle is pi if theyre completely opposite
+	if angle - np.pi < MAX_ANGLE: #angle is pi if theyre completely opposite
 		return True
 
 	return False
+
+def create_adjacency_graph(swt_image):
+	#check pixel to the right, left, up and down. If their ratio is between some determined ratio, add as edge
+	#TODO: connected components tuntuu toimivan, mutta se ottaa kaikki yksinäiset nollat omana grouppina.
+	#täytyy tehdä niin että se jotenkin ignoraa ne.
+	
+	y, x = swt_image.shape
+	edges = dok_matrix((y*x, y*x), dtype=np.int8)
+
+	for row in range(y):
+		for col in range(x):
+			idx = row*x + col
+			if swt_image[row, col] == np.inf:
+				continue
+
+			if col+1 < x and swt_image[row,col+1] != np.inf:
+				ratio = swt_image[row,col] / (swt_image[row,col+1] + eps)
+				if ratio > 0.33 and ratio < 3.00:
+					edgeidx = row*x + col + 1
+					edges[idx, edgeidx] = 1
+
+			if col-1 > 0 and swt_image[row,col-1] != np.inf:
+				ratio = swt_image[row,col] / (swt_image[row,col-1] + eps)
+				if ratio > 0.33 and ratio < 3.00:
+					edgeidx = row*x + col - 1
+					edges[idx, edgeidx] = 1
+
+			if row+1 < y and swt_image[row+1,col] != np.inf:
+				ratio = swt_image[row,col] / (swt_image[row+1,col] + eps)
+				if ratio > 0.33 and ratio < 3.00:
+					edgeidx = (row+1)*x + col
+					edges[idx, edgeidx] = 1
+
+			if row-1 > 0 and swt_image[row-1,col] != np.inf:
+				ratio = swt_image[row,col] / (swt_image[row-1,col] + eps)
+				if ratio > 0.33 and ratio < 3.00:
+					edgeidx = (row-1)*x + col
+					edges[idx, edgeidx] = 1
+
+	return edges
 
 def get_swts(edges, dxs, dys):
 	posy, posx = np.where(edges)
@@ -65,7 +107,7 @@ def get_swts(edges, dxs, dys):
 	return stroke_widths
 
 	
-img = imread("../images/test2big.jpg", as_grey=True).astype(np.float64)
+img = imread("../images/I.png", as_grey=True).astype(np.float64)
 img /= np.max(img) #normalizing so every image is similar, otherwise the edge detection messes up
 dx = sobel(img, 1).astype(np.float64)# * -1 #maybe multiply with -1, easier to think that way (normally white = 1, black = 0)
 dy = sobel(img, 0).astype(np.float64)# * -1
@@ -77,4 +119,6 @@ dy = dy/maxes
 edges = canny(img, low_threshold=0.3, high_threshold=0.9, sigma=0.5).astype(np.int32) #still not as good as it should..
 
 swts = get_swts(edges, dx, dy)
-plot_img(swts)
+gg = create_adjacency_graph(swts)
+con = connected_components(gg)
+#plot_img(swts)
