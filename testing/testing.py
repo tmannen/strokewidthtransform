@@ -5,9 +5,11 @@ from scipy.ndimage.filters import sobel, gaussian_filter
 from scipy.sparse import dok_matrix, csr_matrix
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import numpy as np
 from PIL import Image
 from scipy.sparse.csgraph import connected_components
+from skimage.measure import regionprops
 
 eps = 10e-6 #for division of zero stuff
 MAX_ANGLE = np.pi/4
@@ -16,6 +18,18 @@ MAX_ANGLE = np.pi/4
 
 def plot_img(image):
 	plt.imshow(image, cmap=plt.cm.gray); plt.show()
+
+def plot_regions(regions, image):
+	fig, ax = plt.subplots(ncols=1, nrows=1)
+	ax.imshow(image, cmap=plt.cm.gray)
+
+	for region in regions:
+	    minr, minc, maxr, maxc = region.bbox
+	    rect = mpatches.Rectangle((minc, minr), maxc - minc, maxr - minr,
+	                              fill=False, edgecolor='red', linewidth=1)
+	    ax.add_patch(rect)
+
+	plt.show()
 
 def check_edge_grad(source_grads, target_grads):
 	#check if gradient is in the opposite direction
@@ -108,24 +122,60 @@ def get_swts(edges, dxs, dys):
 
 	return stroke_widths
 
+def get_and_filter_regions(labels, swts):
+
+	#first reject ccs with too high SWT variance
+	var_threshold = 5.0
 	
-img = imread("../images/I.png", as_grey=True).astype(np.float64)
+	for label in uniq[uniq_counts > 1]:
+		component = swts[labels==label]
+		cc_variance = np.var(component)
+		cc_mean = np.mean(component)
+		if cc_variance > var_threshold:
+			labels[labels==label] = 0
+
+	regions = regionprops(labels)
+	print("After SWT variance filtering: ", len(regions))
+
+	#filter by height
+	regions = [r for r in regions if r.bbox[2] - r.bbox[0] > 8 and r.bbox[2] - r.bbox[0] < 300]
+	print("After height filtering: ", len(regions))
+	#filter by aspect ratio
+	def region_aspect_check(r):
+		height = r.bbox[2] - r.bbox[0]; width = r.bbox[3] - r.bbox[1]
+		if width / height > 0.1 and width / height < 10.0:
+			return True
+
+		return False
+
+	regions = [r for r in regions if region_aspect_check(r)]
+	print("After aspect ratio filtering: ", len(regions))
+
+	return regions
+	
+img = imread("../images/test2big.jpg", as_grey=True).astype(np.float64)
 img /= np.max(img) #normalizing so every image is similar, otherwise the edge detection messes up
-dx = sobel(img, 1).astype(np.float64) * -1 #maybe multiply with -1, easier to think that way (normally white = 1, black = 0)
-dy = sobel(img, 0).astype(np.float64) * -1
+dx = sobel(img, 1).astype(np.float64)# * -1 #maybe multiply with -1, easier to think that way (normally white = 1, black = 0)
+dy = sobel(img, 0).astype(np.float64)# * -1
 maxes = np.max(np.abs(np.stack([dx, dy])), axis=0)
 maxes[maxes==0] = 1.0 #if both are zero max is zero, fix divide by zero (number doesnt matter here as zero will be divided)
 magnitudes = np.hypot(dx, dy)
 dx = dx/maxes #for normalizing gradients so the bigger is 1, easier to step in the future
 dy = dy/maxes
-edges = canny(img, low_threshold=0.3, high_threshold=0.9, sigma=0.5).astype(np.int32) #still not as good as it should..
+edges = canny(img, low_threshold=0.3, high_threshold=0.9, sigma=0.5).astype(np.int32) #still not as good as it should be..
 
 swts = get_swts(edges, dx, dy)
 gg = create_adjacency_graph(swts)
 n_component, labels = connected_components(gg)
 uniq, uniq_idx, uniq_counts = np.unique(labels, return_inverse=True, return_counts=True)
 non_unique_mask = np.in1d(labels, uniq[uniq_counts > 1])
+labels[np.logical_not(non_unique_mask)] = 0
+labels = labels.reshape(swts.shape)
 
-components = np.reshape(non_unique_mask, swts.shape)
+#then get regionprops from those that are left?
+regions = get_and_filter_regions(labels, swts)
+print(len(regions))
+
+#components = np.reshape(non_unique_mask, swts.shape)
 
 #plot_img(swts)
