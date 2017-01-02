@@ -153,10 +153,10 @@ def get_and_filter_regions(labels, swts):
 
 	return regions
 	
-img = imread("../images/test2big.jpg", as_grey=True).astype(np.float64)
+img = imread("../images/testsmall.png", as_grey=True).astype(np.float64)
 img /= np.max(img) #normalizing so every image is similar, otherwise the edge detection messes up
-dx = sobel(img, 1).astype(np.float64)# * -1 #maybe multiply with -1, easier to think that way (normally white = 1, black = 0)
-dy = sobel(img, 0).astype(np.float64)# * -1
+dx = sobel(img, 1).astype(np.float64) * -1 #maybe multiply with -1, easier to think that way (normally white = 1, black = 0)
+dy = sobel(img, 0).astype(np.float64) * -1
 maxes = np.max(np.abs(np.stack([dx, dy])), axis=0)
 maxes[maxes==0] = 1.0 #if both are zero max is zero, fix divide by zero (number doesnt matter here as zero will be divided)
 magnitudes = np.hypot(dx, dy)
@@ -174,7 +174,6 @@ labels = labels.reshape(swts.shape)
 
 #then get regionprops from those that are left?
 regions = get_and_filter_regions(labels, swts)
-print(len(regions))
 
 #components = np.reshape(non_unique_mask, swts.shape)
 
