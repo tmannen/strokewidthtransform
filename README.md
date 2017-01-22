@@ -3,10 +3,8 @@ Implementing the Stroke Width Transform algorithm for detecting text from: http:
 
 Before SWT (from: http://www.cs.cornell.edu/courses/cs4670/2010fa/projects/final/results/group_of_arp86_sk2357/Writeup.pdf)
 
-![Before SWT](test2.png)
+![Before SWT](images/test2big.jpg)
 
-After SWT:
+After SWT (filtering not fully done yet):
 
-![After SWT](figure_1.png)
-
-The results aren't as good as in the paper. This might be due to the edge detection, as it seems 'coarse'. I'm not sure how to set the canny parameters to get it smoother.
+![After SWT](figure_2.png)
