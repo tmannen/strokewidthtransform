@@ -7,6 +7,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
+import time
 from PIL import Image
 from scipy.sparse.csgraph import connected_components
 from skimage.measure import regionprops
@@ -20,7 +21,8 @@ def plot_img(image):
 	plt.imshow(image, cmap=plt.cm.gray); plt.show()
 
 def plot_regions(regions, image):
-	fig, ax = plt.subplots(ncols=1, nrows=1)
+	#todo: dpi by image size
+	fig, ax = plt.subplots(figsize=(16, 10))
 	ax.imshow(image, cmap=plt.cm.gray)
 
 	for region in regions:
@@ -29,7 +31,8 @@ def plot_regions(regions, image):
 	                              fill=False, edgecolor='red', linewidth=1)
 	    ax.add_patch(rect)
 
-	plt.show()
+	ax.axis('off')
+	plt.savefig("output.png", bbox_inches='tight', dpi=100)
 
 def check_edge_grad(source_grads, target_grads):
 	#check if gradient is in the opposite direction
@@ -122,6 +125,29 @@ def get_swts(edges, dxs, dys):
 
 	return stroke_widths
 
+#checks for bounding boxes that contain more than 2 other components
+def check_bb_intersects(regions):
+	regiondict = {}
+	idx = 0
+	for region in regions:
+		regiondict[idx] = 0
+		minr, minc, maxr, maxc = region.bbox
+
+		for other_region in regions:
+			if region.bbox == other_region.bbox:
+				pass
+
+			c = other_region.centroid
+
+			if c[0] < maxr and c[0] > minr and c[1] < maxc and c[1] > minc:
+				regiondict[idx] += 1
+
+		idx += 1
+
+
+	newregions = [regions[i] for (i, count) in regiondict.items() if count < 3]
+	return newregions
+
 def get_and_filter_regions(labels, swts):
 
 	#first reject ccs with too high SWT variance
@@ -148,15 +174,23 @@ def get_and_filter_regions(labels, swts):
 
 		return False
 
+
 	regions = [r for r in regions if region_aspect_check(r)]
 	print("After aspect ratio filtering: ", len(regions))
 
+	t0 = time.time()
+	regions = check_bb_intersects(regions)
+	t1 = time.time()
+	total_n = t1-t0
+	print("After taking out overlapping regions: ", len(regions))
+	print("Time taken: ", total_n)
+
 	return regions
 	
-img = imread("../images/test2big.jpg", as_grey=True).astype(np.float64)
+img = imread("../images/testimage.png", as_grey=True).astype(np.float64)
 img /= np.max(img) #normalizing so every image is similar, otherwise the edge detection messes up
-dx = sobel(img, 1).astype(np.float64)# * -1 #maybe multiply with -1, easier to think that way (normally white = 1, black = 0)
-dy = sobel(img, 0).astype(np.float64)# * -1
+dx = sobel(img, 1).astype(np.float64) * -1 #maybe multiply with -1, easier to think that way (normally white = 1, black = 0)
+dy = sobel(img, 0).astype(np.float64) * -1
 maxes = np.max(np.abs(np.stack([dx, dy])), axis=0)
 maxes[maxes==0] = 1.0 #if both are zero max is zero, fix divide by zero (number doesnt matter here as zero will be divided)
 magnitudes = np.hypot(dx, dy)
@@ -178,3 +212,4 @@ regions = get_and_filter_regions(labels, swts)
 #components = np.reshape(non_unique_mask, swts.shape)
 
 #plot_img(swts)
+plot_regions(regions, img)
